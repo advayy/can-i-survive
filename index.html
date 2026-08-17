@@ -1,0 +1,1061 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="Can I Survive? A simple financial survivability simulator." />
+  <title>Can I Survive?</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main id="app">
+    <section class="view active landing" id="landingView">
+      <div class="landing-inner">
+        <p class="eyebrow">Financial survivability simulator</p>
+        <h1>Can I survive?</h1>
+        <p class="lede">
+          Sketch out your finances, then see how they hold up through work,
+          retirement, markets, housing, and random life stuff.
+        </p>
+        <button class="primary large" id="startButton">Start</button>
+        <button class="text-button" id="loadExampleButton">Try an example</button>
+        <button class="text-button alpha-about-button" id="aboutAlphaButton" type="button">What is this?</button>
+        <p class="landing-disclaimer">
+          Early alpha. This is a fun planning sandbox for retirement and financial what-ifs.
+          The numbers are estimates, not advice or a promise about the future.
+        </p>
+      </div>
+    </section>
+
+    <section class="view" id="setupView">
+      <header class="topbar">
+        <button class="brand text-button" data-go="landingView">Can I survive?</button>
+        <div class="step-indicator" id="stepIndicator">1 / 5</div>
+      </header>
+
+      <div class="shell">
+        <section class="step active" data-step="0">
+          <div class="step-copy">
+            <p class="eyebrow">1 · Life window</p>
+            <h2>What are we simulating?</h2>
+            <p>Keep it approximate. You can tune the details later.</p>
+          </div>
+
+          <div class="form-card grid two">
+            <label>
+              Current age
+              <input id="currentAge" type="number" min="16" max="100" value="25" />
+            </label>
+            <label>
+              Simulate until age
+              <input id="endAge" type="number" min="18" max="120" value="80" />
+            </label>
+            <label>
+              Retirement age
+              <input id="retirementAge" type="number" min="18" max="100" value="65" />
+            </label>
+            <label>
+              Current savings
+              <input id="startingSavings" type="number" min="0" step="100" value="15000" />
+            </label>
+            <label>
+              Current investments
+              <input id="startingInvestments" type="number" min="0" step="100" value="5000" />
+            </label>
+            <label>
+              Currency
+              <select id="currency">
+                <option value="CAD">CAD</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="AUD">AUD</option>
+                <option value="NZD">NZD</option>
+                <option value="JPY">JPY</option>
+                <option value="INR">INR</option>
+                <option value="CHF">CHF</option>
+                <option value="SEK">SEK</option>
+                <option value="NOK">NOK</option>
+                <option value="DKK">DKK</option>
+                <option value="SGD">SGD</option>
+                <option value="AED">AED</option>
+              </select>
+            </label>
+            <label class="span-two">
+              Country / data profile
+              <select id="country">
+                <option value="CA">Canada</option>
+                <option value="US">United States</option>
+                <option value="GB">United Kingdom</option>
+                <option value="NL">Netherlands</option>
+                <option value="GENERIC">Generic / manual</option>
+              </select>
+              <small id="countryDataStatus">Canada has a data-backed prototype profile. Other countries currently fall back to generic assumptions.</small>
+            </label>
+            <div class="span-two data-profile-strip">
+              <div>
+                <strong id="countryProfileHeadline">Canada · local assumptions available</strong>
+                <small id="countryProfileDetails">Inflation and labour-risk context can be loaded into the plan.</small>
+              </div>
+              <button class="secondary" id="applyCountryDefaultsButton" type="button">Apply country defaults</button>
+            </div>
+            <label id="provinceField">
+              Province / territory
+              <select id="province">
+                <option value="BC">British Columbia</option>
+                <option value="AB">Alberta</option>
+                <option value="SK">Saskatchewan</option>
+                <option value="MB">Manitoba</option>
+                <option value="ON">Ontario</option>
+                <option value="QC">Quebec</option>
+                <option value="NB">New Brunswick</option>
+                <option value="NS">Nova Scotia</option>
+                <option value="PE">Prince Edward Island</option>
+                <option value="NL">Newfoundland and Labrador</option>
+                <option value="YT">Yukon</option>
+                <option value="NT">Northwest Territories</option>
+                <option value="NU">Nunavut</option>
+              </select>
+              <small>Used by the Canadian tax approximation and future regional calibration.</small>
+            </label>
+            <div class="benchmark-card">
+              <span class="data-badge official">Official benchmark</span>
+              <div>
+                <strong id="wealthBenchmarkHeadline">Typical Canadian household benchmark</strong>
+                <p id="wealthBenchmarkText">Statistics Canada SFS 2023 median net worth will appear here for your age band.</p>
+              </div>
+              <button class="secondary" id="applyWealthBenchmarkButton" type="button">Use modelled starting position</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="step" data-step="1">
+          <div class="step-copy">
+            <p class="eyebrow">2 · Cash flow</p>
+            <h2>What comes in and what goes out?</h2>
+            <p>Each row is a node with its own time window.</p>
+          </div>
+
+          <div class="mode-card compact">
+            <div>
+              <h3>Income setup</h3>
+              <p>Use an estimated career curve or describe every income period yourself.</p>
+            </div>
+            <div class="segmented" role="group" aria-label="Income setup">
+              <button class="segment active" data-income-mode="typical" type="button">Typical career</button>
+              <button class="segment" data-income-mode="custom" type="button">Custom nodes</button>
+            </div>
+          </div>
+
+          <div class="career-card" id="typicalCareerPanel">
+            <div class="section-heading">
+              <div>
+                <h3>Typical career profile</h3>
+                <p>Starts from a wage anchor, then applies a simple age-dependent career curve until retirement.</p>
+              </div>
+              <span class="data-badge" id="careerDataBadge">Data-backed prototype</span>
+            </div>
+            <div class="grid two">
+              <label>
+                Career / field
+                <select id="careerField">
+                  <option value="general">General worker</option>
+                  <option value="software">Software development</option>
+                  <option value="nursing">Registered nursing</option>
+                  <option value="finance">Financial services management</option>
+                </select>
+              </label>
+              <label>
+                Current annual income override
+                <input id="careerCurrentIncome" type="number" min="0" step="1000" placeholder="Leave blank to estimate" />
+                <small>Optional. If blank, the profile estimates a current-age income from its wage anchor.</small>
+              </label>
+            </div>
+            <div class="profile-note" id="careerProfileNote"></div>
+            <div class="career-transition-note">
+              <span class="data-badge proxy">Transition model</span>
+              <span>Life Events and Monte Carlo can now include promotions, job loss, unemployment duration, and a different salary after re-employment.</span>
+            </div>
+          </div>
+
+          <div class="node-section hidden" id="customIncomePanel">
+            <div class="section-heading">
+              <div>
+                <h3>Income nodes</h3>
+                <p>Salary, contract work, pension, side income, etc.</p>
+              </div>
+              <button class="secondary" id="addIncomeButton" type="button">+ Income</button>
+            </div>
+            <div id="incomeNodes" class="nodes"></div>
+          </div>
+
+          <div class="node-section">
+            <div class="section-heading">
+              <div>
+                <h3>Expense nodes</h3>
+                <p>Rent, living costs, childcare, travel, recurring costs.</p>
+              </div>
+              <button class="secondary" id="addExpenseButton">+ Expense</button>
+            </div>
+            <div id="expenseNodes" class="nodes"></div>
+          </div>
+
+          <div class="form-card grid two life-spending-card">
+            <div class="span-two section-heading tight">
+              <div>
+                <h3>Spending over life</h3>
+                <p>Expenses can change in real terms even after inflation.</p>
+              </div>
+              <button class="secondary" id="applySpendingBenchmarkButton" type="button">Use Canadian spending benchmark</button>
+            </div>
+            <div class="span-two calibration-hint" id="spendingBenchmarkNote">
+              SHS 2023 reports average Canadian household spending on goods and services of $76,750. Age-shape adjustments in this prototype are model assumptions.
+            </div>
+            <label>
+              Real lifestyle growth
+              <div class="suffix-input">
+                <input id="expenseRealGrowth" type="number" step="0.1" min="-10" max="15" value="0.5" />
+                <span>% / yr</span>
+              </div>
+              <small>Growth above inflation before retirement.</small>
+            </label>
+            <label>
+              Retirement spending
+              <div class="suffix-input">
+                <input id="retirementExpenseMultiplier" type="number" step="1" min="20" max="200" value="85" />
+                <span>%</span>
+              </div>
+              <small>Percent of the otherwise projected expense level after retirement.</small>
+            </label>
+          </div>
+
+          <div class="node-section">
+            <div class="section-heading">
+              <div>
+                <h3>Housing</h3>
+                <p>Optional home equity and mortgage model. Rent can remain an ordinary expense node.</p>
+              </div>
+              <label class="checkbox-label inline-check">
+                <input id="includeHome" type="checkbox" />
+                Own a home
+              </label>
+            </div>
+            <div id="homeFields" class="grid two muted-disabled">
+              <label>
+                Home value
+                <input id="homeValue" type="number" min="0" step="5000" value="650000" />
+              </label>
+              <label>
+                Mortgage balance
+                <input id="mortgageBalance" type="number" min="0" step="5000" value="450000" />
+              </label>
+              <label>
+                Mortgage interest
+                <div class="suffix-input">
+                  <input id="mortgageRate" type="number" min="0" max="30" step="0.1" value="4.5" />
+                  <span>% / yr</span>
+                </div>
+              </label>
+              <label>
+                Years remaining
+                <input id="mortgageYears" type="number" min="1" max="50" step="1" value="25" />
+              </label>
+              <label>
+                Current mortgage term
+                <div class="suffix-input">
+                  <input id="mortgageTermYears" type="number" min="1" max="10" step="1" value="5" />
+                  <span>years</span>
+                </div>
+                <small>The mortgage rate resets when the term expires.</small>
+              </label>
+              <label>
+                Renewal spread over policy rate
+                <div class="suffix-input">
+                  <input id="mortgageRenewalSpread" type="number" min="0" max="10" step="0.1" value="2.0" />
+                  <span>pts</span>
+                </div>
+              </label>
+              <label>
+                Home appreciation
+                <div class="suffix-input">
+                  <input id="homeAppreciation" type="number" min="-20" max="30" step="0.1" value="3.0" />
+                  <span>% / yr</span>
+                </div>
+              </label>
+              <label>
+                Property tax + fees
+                <div class="suffix-input">
+                  <input id="propertyTaxRate" type="number" min="0" max="10" step="0.1" value="0.6" />
+                  <span>% / yr</span>
+                </div>
+              </label>
+              <label>
+                Maintenance reserve
+                <div class="suffix-input">
+                  <input id="homeMaintenanceRate" type="number" min="0" max="10" step="0.1" value="1.0" />
+                  <span>% / yr</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="node-section">
+            <div class="section-heading">
+              <div>
+                <h3>Other debt</h3>
+                <p>Student loans, car loans, credit cards, or any amortizing balance.</p>
+              </div>
+              <button class="secondary" id="addDebtButton" type="button">+ Debt</button>
+            </div>
+            <div id="debtNodes" class="nodes"></div>
+          </div>
+        </section>
+
+        <section class="step" data-step="2">
+          <div class="step-copy">
+            <p class="eyebrow">3 · Strategy</p>
+            <h2>How do you save and invest?</h2>
+            <p>These are intentionally broad controls rather than a budgeting app.</p>
+          </div>
+
+          <div class="form-card grid two">
+            <label>
+              Inflation
+              <div class="suffix-input">
+                <input id="inflationRate" type="number" step="0.1" min="0" max="20" value="2.0" />
+                <span>% / yr</span>
+              </div>
+            </label>
+            <label>
+              Cash interest
+              <div class="suffix-input">
+                <input id="cashReturn" type="number" step="0.1" min="0" max="20" value="1.5" />
+                <span>% / yr</span>
+              </div>
+            </label>
+            <label>
+              Investment return
+              <div class="suffix-input">
+                <input id="investmentReturn" type="number" step="0.1" min="-20" max="30" value="5.0" />
+                <span>% / yr</span>
+              </div>
+            </label>
+            <label>
+              New savings sent to investments
+              <div class="suffix-input">
+                <input id="investmentShare" type="number" step="1" min="0" max="100" value="70" />
+                <span>%</span>
+              </div>
+            </label>
+            <label>
+              Minimum of leftover income to save
+              <div class="suffix-input">
+                <input id="minSavePercent" type="number" step="1" min="0" max="100" value="50" />
+                <span>%</span>
+              </div>
+            </label>
+            <label>
+              Maximum of total income to save
+              <div class="suffix-input">
+                <input id="maxSavePercent" type="number" step="1" min="0" max="100" value="35" />
+                <span>%</span>
+              </div>
+            </label>
+            <label>
+              Minimum monthly savings target
+              <input id="minSaveAmount" type="number" step="25" min="0" value="500" />
+            </label>
+            <label>
+              Simulation seed
+              <input id="seed" type="number" step="1" value="42" />
+              <small>Same seed + same inputs = same event run.</small>
+            </label>
+          </div>
+
+          <div class="form-card account-card">
+            <div class="section-heading">
+              <div>
+                <h3>Investment uncertainty & accounts</h3>
+                <p>Keep the simple return assumption, or let event/Monte Carlo runs vary market returns.</p>
+              </div>
+            </div>
+            <div class="grid three">
+              <label>
+                Annual volatility
+                <div class="suffix-input">
+                  <input id="investmentVolatility" type="number" min="0" max="80" step="0.5" value="15" />
+                  <span>%</span>
+                </div>
+              </label>
+              <label>
+                Investment fees
+                <div class="suffix-input">
+                  <input id="investmentFee" type="number" min="0" max="5" step="0.05" value="0.25" />
+                  <span>% / yr</span>
+                </div>
+              </label>
+              <label class="checkbox-label local-risk-toggle">
+                <input id="stochasticReturns" type="checkbox" checked />
+                Variable returns in Life Events / Monte Carlo
+              </label>
+              <label>
+                Tax-free account share
+                <div class="suffix-input">
+                  <input id="taxFreeShare" type="number" min="0" max="100" step="1" value="40" />
+                  <span>%</span>
+                </div>
+                <small>TFSA-like or local equivalent.</small>
+              </label>
+              <label>
+                Tax-deferred account share
+                <div class="suffix-input">
+                  <input id="taxDeferredShare" type="number" min="0" max="100" step="1" value="40" />
+                  <span>%</span>
+                </div>
+                <small>RRSP-like or local equivalent. Remainder is taxable.</small>
+              </label>
+              <label>
+                Tax on taxable investment gains
+                <div class="suffix-input">
+                  <input id="taxableInvestmentTaxRate" type="number" min="0" max="60" step="1" value="15" />
+                  <span>%</span>
+                </div>
+              </label>
+            </div>
+
+            <details class="compact-details">
+              <summary>Portfolio & macro model</summary>
+              <div class="grid three compact-details-body">
+                <label>
+                  Portfolio model
+                  <select id="portfolioModel">
+                    <option value="simple">Single-return model</option>
+                    <option value="multiasset" selected>Equity + bond model</option>
+                  </select>
+                </label>
+                <label>
+                  Equity allocation
+                  <div class="suffix-input">
+                    <input id="equityWeight" type="number" min="0" max="100" step="1" value="70" />
+                    <span>%</span>
+                  </div>
+                </label>
+                <label>
+                  Bond allocation
+                  <div class="suffix-input">
+                    <input id="bondWeight" type="number" min="0" max="100" step="1" value="30" />
+                    <span>%</span>
+                  </div>
+                </label>
+                <label>
+                  Equity expected return
+                  <div class="suffix-input">
+                    <input id="equityReturn" type="number" min="-20" max="30" step="0.1" value="6.5" />
+                    <span>% / yr</span>
+                  </div>
+                </label>
+                <label>
+                  Equity volatility
+                  <div class="suffix-input">
+                    <input id="equityVolatility" type="number" min="0" max="80" step="0.5" value="18" />
+                    <span>%</span>
+                  </div>
+                </label>
+                <label>
+                  Bond expected return
+                  <div class="suffix-input">
+                    <input id="bondReturn" type="number" min="-20" max="20" step="0.1" value="3.0" />
+                    <span>% / yr</span>
+                  </div>
+                </label>
+                <label>
+                  Bond volatility
+                  <div class="suffix-input">
+                    <input id="bondVolatility" type="number" min="0" max="40" step="0.5" value="6" />
+                    <span>%</span>
+                  </div>
+                </label>
+                <label>
+                  Equity/bond correlation
+                  <input id="equityBondCorrelation" type="number" min="-1" max="1" step="0.05" value="0.15" />
+                </label>
+                <label class="checkbox-label local-risk-toggle">
+                  <input id="stochasticInflation" type="checkbox" checked />
+                  Let inflation vary around its long-run assumption
+                </label>
+                <label>
+                  Inflation volatility
+                  <div class="suffix-input">
+                    <input id="inflationVolatility" type="number" min="0" max="10" step="0.1" value="1.2" />
+                    <span>pts / yr</span>
+                  </div>
+                </label>
+                <label class="checkbox-label local-risk-toggle">
+                  <input id="parameterUncertainty" type="checkbox" checked />
+                  Sample uncertainty in model parameters during Monte Carlo
+                </label>
+              </div>
+            </details>
+          </div>
+
+          <div class="mode-card">
+            <div>
+              <h3>Simulation mode</h3>
+              <p>Use one clean path, watch one eventful life, or test the plan across hundreds of possible lives.</p>
+            </div>
+            <div class="segmented" role="group" aria-label="Simulation mode">
+              <button class="segment active" data-mode="baseline" type="button">Baseline</button>
+              <button class="segment" data-mode="events" type="button">Life Events</button>
+              <button class="segment" data-mode="montecarlo" type="button">Monte Carlo</button>
+            </div>
+          </div>
+
+          <div class="event-controls hidden" id="eventControls">
+            <div class="grid two">
+              <label>
+                Event intensity
+                <input id="eventIntensity" type="range" min="0" max="200" step="10" value="100" />
+                <small><span id="eventIntensityValue">100%</span> of the selected event model.</small>
+              </label>
+              <label class="checkbox-label local-risk-toggle">
+                <input id="useLocalRisk" type="checkbox" checked />
+                Use local country labour-risk profile where available
+              </label>
+            </div>
+            <div class="monte-controls hidden" id="monteControls">
+              <label>
+                Monte Carlo runs
+                <select id="monteRuns">
+                  <option value="100">100</option>
+                  <option value="500" selected>500</option>
+                  <option value="1000">1,000</option>
+                </select>
+              </label>
+            </div>
+            <p class="fine-print" id="eventModelNote">
+              Some events are still scenario assumptions. Data-backed inputs are labelled explicitly rather than presented as personal actuarial probabilities.
+            </p>
+          </div>
+        </section>
+
+        <section class="step" data-step="3">
+          <div class="step-copy">
+            <p class="eyebrow">4 · Assumptions</p>
+            <h2>What should the model assume?</h2>
+            <p>Canada provides a starting preset. Every value here is editable, so the same model can represent another country or your own scenario.</p>
+          </div>
+
+          <div class="form-card">
+            <div class="section-heading">
+              <div>
+                <h3>Money, tax & retirement</h3>
+                <p>These are simplified planning assumptions, not a tax return calculator.</p>
+              </div>
+              <span class="data-badge">Editable</span>
+            </div>
+            <div class="grid three">
+              <label>
+                Tax model
+                <select id="taxModel">
+                  <option value="effective">Simple effective rate</option>
+                  <option value="canada2026" selected>Canada 2026 bracket approximation</option>
+                </select>
+                <small>Canadian mode uses federal + selected provincial brackets, a federal basic-personal credit, CPP and EI approximations.</small>
+              </label>
+              <label>
+                Effective income tax
+                <div class="suffix-input">
+                  <input id="incomeTaxRate" type="number" min="0" max="70" step="1" value="25" />
+                  <span>%</span>
+                </div>
+                <small>Average tax/payroll drag on gross income.</small>
+              </label>
+              <label>
+                Tax-deferred withdrawal tax
+                <div class="suffix-input">
+                  <input id="deferredWithdrawalTaxRate" type="number" min="0" max="70" step="1" value="22" />
+                  <span>%</span>
+                </div>
+              </label>
+              <label>
+                Government retirement income
+                <input id="governmentRetirementMonthly" type="number" min="0" step="25" value="1629" />
+                <small>Monthly amount beginning at the age below. Override with your own estimate.</small>
+              </label>
+              <label>
+                Canada pension shortcut
+                <select id="pensionPreset">
+                  <option value="manual">Manual / keep my number</option>
+                  <option value="average" selected>Average new CPP at 65 + max OAS</option>
+                  <option value="maximum">Maximum CPP at 65 + max OAS</option>
+                  <option value="none">No government retirement income</option>
+                </select>
+                <small>Convenience only: CPP/OAS entitlement depends on contribution history, age, residency and income.</small>
+              </label>
+              <label>
+                Retirement income starts
+                <input id="governmentRetirementAge" type="number" min="50" max="90" step="1" value="65" />
+              </label>
+              <label>
+                Longevity safety buffer
+                <div class="suffix-input">
+                  <input id="longevityBufferYears" type="number" min="0" max="30" step="1" value="5" />
+                  <span>years</span>
+                </div>
+                <small>Simulates beyond your chosen end age as a conservative planning buffer.</small>
+              </label>
+              <label>
+                Longevity calibration
+                <select id="longevityProfile">
+                  <option value="neutral" selected>Canada · neutral approximation</option>
+                  <option value="male">Canada · male life-table shape</option>
+                  <option value="female">Canada · female life-table shape</option>
+                  <option value="manual">Manual horizon only</option>
+                </select>
+                <small id="longevityEstimateText">Shows the estimated chance of outliving your selected planning age; it does not shorten the plan automatically.</small>
+              </label>
+              <label class="checkbox-label local-risk-toggle">
+                <input id="displayRealDollars" type="checkbox" checked />
+                Show results in today's purchasing power
+              </label>
+            </div>
+          </div>
+
+          <details class="assumption-editor" open>
+            <summary>Probability assumptions</summary>
+            <p>These feed Life Events and Monte Carlo. Change them to use local statistics or test a more optimistic/pessimistic world.</p>
+            <div class="grid three assumption-grid">
+              <label>
+                Job-loss probability
+                <div class="suffix-input">
+                  <input id="jobLossAnnual" type="number" min="0" max="100" step="0.1" value="3.0" />
+                  <span>% / yr</span>
+                </div>
+              </label>
+              <label>
+                Job-loss duration minimum
+                <div class="suffix-input">
+                  <input id="jobLossMinMonths" type="number" min="1" max="60" step="1" value="2" />
+                  <span>months</span>
+                </div>
+              </label>
+              <label>
+                Job-loss duration maximum
+                <div class="suffix-input">
+                  <input id="jobLossMaxMonths" type="number" min="1" max="60" step="1" value="8" />
+                  <span>months</span>
+                </div>
+              </label>
+
+              <label>
+                Emergency-expense probability
+                <div class="suffix-input">
+                  <input id="emergencyAnnual" type="number" min="0" max="100" step="0.1" value="8.5" />
+                  <span>% / yr</span>
+                </div>
+              </label>
+              <label>
+                Emergency minimum
+                <input id="emergencyMin" type="number" min="0" step="250" value="1000" />
+              </label>
+              <label>
+                Emergency maximum
+                <input id="emergencyMax" type="number" min="0" step="250" value="6500" />
+              </label>
+
+              <label>
+                Bonus / windfall probability
+                <div class="suffix-input">
+                  <input id="bonusAnnual" type="number" min="0" max="100" step="0.1" value="7" />
+                  <span>% / yr</span>
+                </div>
+              </label>
+              <label>
+                Bonus minimum
+                <input id="bonusMin" type="number" min="0" step="250" value="750" />
+              </label>
+              <label>
+                Bonus maximum
+                <input id="bonusMax" type="number" min="0" step="250" value="5000" />
+              </label>
+
+              <label>
+                Extra market-shock probability
+                <div class="suffix-input">
+                  <input id="marketShockAnnual" type="number" min="0" max="100" step="0.1" value="2.5" />
+                  <span>% / yr</span>
+                </div>
+              </label>
+              <label>
+                Shock loss minimum
+                <div class="suffix-input">
+                  <input id="marketShockMin" type="number" min="0" max="100" step="1" value="8" />
+                  <span>%</span>
+                </div>
+              </label>
+              <label>
+                Shock loss maximum
+                <div class="suffix-input">
+                  <input id="marketShockMax" type="number" min="0" max="100" step="1" value="24" />
+                  <span>%</span>
+                </div>
+              </label>
+
+              <label>
+                Promotion probability
+                <div class="suffix-input">
+                  <input id="promotionAnnual" type="number" min="0" max="100" step="0.5" value="8" />
+                  <span>% / yr</span>
+                </div>
+              </label>
+              <label>
+                Promotion raise minimum
+                <div class="suffix-input">
+                  <input id="promotionMin" type="number" min="0" max="100" step="1" value="5" />
+                  <span>%</span>
+                </div>
+              </label>
+              <label>
+                Promotion raise maximum
+                <div class="suffix-input">
+                  <input id="promotionMax" type="number" min="0" max="100" step="1" value="15" />
+                  <span>%</span>
+                </div>
+              </label>
+              <label>
+                Re-employment salary minimum
+                <div class="suffix-input">
+                  <input id="reemploymentMin" type="number" min="20" max="200" step="1" value="90" />
+                  <span>%</span>
+                </div>
+              </label>
+              <label>
+                Re-employment salary maximum
+                <div class="suffix-input">
+                  <input id="reemploymentMax" type="number" min="20" max="200" step="1" value="105" />
+                  <span>%</span>
+                </div>
+              </label>
+              <label class="checkbox-label local-risk-toggle">
+                <input id="namedEventDeck" type="checkbox" checked />
+                Use named real-life expense scenarios
+              </label>
+              <label>
+                Named-event cost scale
+                <div class="suffix-input">
+                  <input id="eventCostScale" type="number" min="25" max="400" step="5" value="100" />
+                  <span>%</span>
+                </div>
+              </label>
+            </div>
+          </details>
+
+          <details class="assumption-editor">
+            <summary>Economic-state assumptions</summary>
+            <p>Recessions correlate weaker markets with greater job-loss risk instead of rolling every event independently.</p>
+            <div class="grid three assumption-grid">
+              <label>
+                Enter recession
+                <div class="suffix-input">
+                  <input id="recessionEntryAnnual" type="number" min="0" max="100" step="0.5" value="12" />
+                  <span>% / yr</span>
+                </div>
+              </label>
+              <label>
+                Exit recession
+                <div class="suffix-input">
+                  <input id="recessionExitAnnual" type="number" min="0" max="100" step="1" value="55" />
+                  <span>% / yr</span>
+                </div>
+              </label>
+              <label>
+                Job-loss risk multiplier
+                <input id="recessionJobMultiplier" type="number" min="1" max="10" step="0.1" value="2.0" />
+              </label>
+              <label>
+                Return penalty in recession
+                <div class="suffix-input">
+                  <input id="recessionReturnPenalty" type="number" min="0" max="50" step="0.5" value="12" />
+                  <span>pts / yr</span>
+                </div>
+              </label>
+            </div>
+          </details>
+
+          <details class="assumption-editor">
+            <summary>Historical stress analogue</summary>
+            <p>Optional stress tests recreate the *shape* of a real Canadian episode, not a month-by-month historical replay.</p>
+            <div class="grid three assumption-grid">
+              <label>
+                Scenario
+                <select id="historicalScenario">
+                  <option value="none">None</option>
+                  <option value="gfc2008">2008-09 financial crisis analogue</option>
+                  <option value="pandemic2020">2020 pandemic labour shock analogue</option>
+                  <option value="inflation2022">2022 inflation / rate shock analogue</option>
+                  <option value="random">Random historical analogue</option>
+                </select>
+              </label>
+              <label>
+                Stress begins around age
+                <input id="historicalScenarioAge" type="number" min="18" max="100" step="1" value="40" />
+              </label>
+              <div class="historical-note" id="historicalScenarioNote">
+                Select a scenario to see what it changes.
+              </div>
+            </div>
+          </details>
+
+          <details class="assumption-editor" open>
+            <summary>Calibration & provenance</summary>
+            <p>Every grounded value is tagged as an official observation, proxy, calibrated model parameter, or user assumption.</p>
+            <div class="source-legend">
+              <span class="data-badge official">Official</span>
+              <span class="data-badge proxy">Proxy</span>
+              <span class="data-badge model">Model</span>
+              <span class="data-badge user">User</span>
+            </div>
+            <div id="calibrationCards" class="calibration-cards"></div>
+          </details>
+
+          <div class="profile-note">
+            <strong>Using another country:</strong> choose “Generic / manual” on Step 1, then replace inflation, taxes, retirement income, wage override, market assumptions, and probabilities here with local values. Nothing in the engine requires Canadian units.
+          </div>
+        </section>
+
+        <section class="step" data-step="4">
+          <div class="step-copy">
+            <p class="eyebrow">5 · Ready</p>
+            <h2>Run your life.</h2>
+            <p>You can come back and adjust any assumption after the simulation.</p>
+          </div>
+
+          <div class="run-card">
+            <div>
+              <span class="run-label">Mode</span>
+              <strong id="runModeSummary">Baseline</strong>
+            </div>
+            <div>
+              <span class="run-label">Window</span>
+              <strong id="runWindowSummary">Age 25 → 80</strong>
+            </div>
+            <button class="primary large" id="runButton">Run simulation</button>
+          </div>
+        </section>
+
+        <div class="wizard-actions">
+          <button class="secondary" id="backButton">Back</button>
+          <button class="primary" id="nextButton">Next</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="resultsView">
+      <header class="topbar results-bar">
+        <button class="brand text-button" data-go="landingView">Can I survive?</button>
+        <div class="result-actions">
+          <button class="secondary" id="editButton">Edit plan</button>
+          <button class="primary" id="rerunButton">Run again</button>
+        </div>
+      </header>
+
+      <div class="results-shell">
+        <section class="result-hero">
+          <div>
+            <p class="eyebrow" id="resultModeLabel">Baseline simulation</p>
+            <h2 id="survivalHeadline">You make it to 80.</h2>
+            <p id="survivalSubhead"></p>
+          </div>
+        </section>
+
+        <div class="results-main-grid">
+          <section class="chart-card">
+            <div class="chart-heading">
+              <div>
+                <h3>Money over time</h3>
+                <p id="chartSubtitle">Watch the plan unfold. Hover event markers to inspect what happened.</p>
+              </div>
+              <div class="chart-tools">
+                <div class="legend">
+                  <span><i class="legend-line net"></i>Net worth</span>
+                  <span><i class="legend-line investments"></i>Investments</span>
+                  <span><i class="legend-line cash"></i>Cash</span>
+                  <span id="homeLegend"><i class="legend-line home"></i>Home equity</span>
+                </div>
+                <button class="secondary replay-button" id="replayAnimationButton" type="button">Replay</button>
+              </div>
+            </div>
+            <div id="chartWrap" class="chart-wrap"></div>
+          </section>
+
+          <section class="events-card">
+            <div class="section-heading">
+              <div>
+                <h3>Timeline events</h3>
+                <p id="eventSummary">No probabilistic events in baseline mode.</p>
+              </div>
+            </div>
+            <div id="eventList" class="event-list"></div>
+          </section>
+        </div>
+
+        <section class="outcome-panel" id="outcomePanel">
+          <div class="hero-number">
+            <span id="primaryMetricLabel">Net worth now</span>
+            <strong id="finalNetWorth">$0</strong>
+            <small id="outcomeAgeLabel">At the start</small>
+          </div>
+          <section class="metric-row" id="metricRow"></section>
+        </section>
+
+        <section class="analysis-card">
+          <div class="section-heading">
+            <div>
+              <h3>What matters most?</h3>
+              <p>One-at-a-time sensitivity checks show which assumptions move this plan the most.</p>
+            </div>
+          </div>
+          <div id="sensitivityList" class="sensitivity-list"></div>
+        </section>
+
+        <section class="analysis-card">
+          <div class="section-heading">
+            <div>
+              <h3>Calibration check</h3>
+              <p>Context from the active country profile. These are benchmarks, not goals.</p>
+            </div>
+          </div>
+          <div id="calibrationResult" class="calibration-result"></div>
+        </section>
+
+        <details class="assumptions">
+          <summary>Important assumptions</summary>
+          <ul>
+            <li>This is an alpha planning simulator, not financial advice or a prediction of your future.</li>
+            <li>Canada can use a simplified 2026 tax model with federal and provincial brackets plus approximate CPP and EI. It is not a tax-return calculator and does not include every credit, deduction, benefit, or account rule.</li>
+            <li>Baseline uses smoother financial assumptions. Life Events and Monte Carlo can vary markets, inflation, recessions, career events, mortgage renewals, and other shocks.</li>
+            <li>Typical Career combines public wage anchors with modelled career growth, promotions, layoffs, unemployment periods, and re-employment salary changes.</li>
+            <li>Housing adds home equity to net worth, but the simulator does not automatically sell or refinance the home to cover a cash shortfall.</li>
+            <li>The survivability result is mainly a liquidity test: cash and liquid investments can be used when spending exceeds income. A household can have positive total net worth and still run short of spendable money.</li>
+            <li>Named life events and historical stress scenarios are illustrative model inputs. Their timing and cost are not personal forecasts.</li>
+            <li>Canada has the most source-aware defaults right now. Other countries use the same engine but rely more heavily on values you enter yourself.</li>
+            <li>Monte Carlo percentiles and sensitivity bars describe outcomes inside this model. They are not confidence guarantees about the real world.</li>
+          </ul>
+          <p class="fine-print">For the formulas, data sources, and known limitations, see <a href="MODEL.md" target="_blank" rel="noreferrer">How the model works</a>.</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <template id="incomeNodeTemplate">
+    <div class="node income-node">
+      <div class="node-main">
+        <label>
+          Label
+          <input data-field="label" type="text" value="Job" />
+        </label>
+        <label>
+          Annual income
+          <input data-field="annual" type="number" min="0" step="1000" value="65000" />
+        </label>
+        <label>
+          Start age
+          <input data-field="startAge" type="number" min="16" max="120" value="25" />
+        </label>
+        <label>
+          End age
+          <input data-field="endAge" type="number" min="16" max="120" value="65" />
+        </label>
+        <label>
+          Annual raise
+          <div class="suffix-input">
+            <input data-field="growth" type="number" step="0.1" min="-20" max="30" value="3" />
+            <span>%</span>
+          </div>
+        </label>
+      </div>
+      <button class="icon-button remove-node" aria-label="Remove income node">×</button>
+    </div>
+  </template>
+
+  <template id="expenseNodeTemplate">
+    <div class="node expense-node">
+      <div class="node-main">
+        <label>
+          Label
+          <input data-field="label" type="text" value="Living costs" />
+        </label>
+        <label>
+          Monthly cost
+          <input data-field="monthly" type="number" min="0" step="50" value="2800" />
+        </label>
+        <label>
+          Start age
+          <input data-field="startAge" type="number" min="16" max="120" value="25" />
+        </label>
+        <label>
+          End age
+          <input data-field="endAge" type="number" min="16" max="120" value="80" />
+        </label>
+        <label class="checkbox-label">
+          <input data-field="inflates" type="checkbox" checked />
+          Scale with inflation
+        </label>
+      </div>
+      <button class="icon-button remove-node" aria-label="Remove expense node">×</button>
+    </div>
+  </template>
+
+  <template id="debtNodeTemplate">
+    <div class="node debt-node">
+      <div class="node-main debt-fields">
+        <label>
+          Label
+          <input data-field="label" type="text" value="Student loan" />
+        </label>
+        <label>
+          Balance
+          <input data-field="balance" type="number" min="0" step="500" value="15000" />
+        </label>
+        <label>
+          APR
+          <div class="suffix-input">
+            <input data-field="apr" type="number" min="0" max="50" step="0.1" value="5" />
+            <span>%</span>
+          </div>
+        </label>
+        <label>
+          Monthly payment
+          <input data-field="payment" type="number" min="0" step="25" value="300" />
+        </label>
+      </div>
+      <button class="icon-button remove-node" aria-label="Remove debt node">×</button>
+    </div>
+  </template>
+
+  <div class="alpha-modal-backdrop" id="alphaModal" role="dialog" aria-modal="true" aria-labelledby="alphaModalTitle">
+    <div class="alpha-modal-card">
+      <span class="data-badge model">Alpha</span>
+      <h2 id="alphaModalTitle">Try out a possible future.</h2>
+      <p>
+        <strong>Can I Survive?</strong> is a little retirement what-if game.
+        Put in a rough version of your finances and watch one possible life play out.
+      </p>
+      <p>
+        Change things and run it again. Save more, retire later, buy a home, get laid off,
+        hit a rough market, or simply live longer than you planned for.
+      </p>
+      <p class="alpha-modal-fine">
+        This is still an alpha. It mixes public data with editable modelling assumptions,
+        so treat the results as a planning experiment, not financial advice.
+      </p>
+      <div class="alpha-modal-actions">
+        <button class="primary" id="closeAlphaButton" type="button">Let's try it</button>
+        <a class="secondary link-button" href="MODEL.md" target="_blank" rel="noreferrer">How the model works</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
